@@ -1,74 +1,63 @@
-# dsh-completion-alert · 任务完成提醒
+# dsh-completion-alert · DSH 任务完成提醒
 
-一个 DeepSeek Harness（DSH）插件：**任务跑完时，如果主界面不在最上层，就"叮"一声并在屏幕右下角弹出一张置顶缩略卡片；点卡片即可把 DSH 主界面拉到最前，并定位到刚完成的那次会话。**
+给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）用的小插件：**任务跑完时，如果你没在看 DSH 窗口，它会"叮"一声，并在屏幕右下角弹出一张置顶小卡片；点一下卡片，DSH 主界面就回到最前，并自动切到刚完成的那次会话。**
 
 ![右下角置顶卡片](docs/card-preview.png)
 
-```
-agent 停下来 ──► 宿主端判定「任务完成」
-                     │
-                     ├─ 浏览器端一直在上报：主界面是否在最前？
-                     │
-                     ├─ 不在最前 ──► 播放合成"叮"声
-                     │              └─► 右下角置顶卡片（不抢焦点）
-                     │
-                     └─ 在主界面最前 ──► 保持安静
+> 仓库地址（复制这一行即可安装）：`https://github.com/jiachenleo9-create/dsh-completion-alert`
+>
+> 平台：Windows。许可：MIT。无需编译，无需联网（提示音是插件自己合成的）。
 
-点卡片 ──► 写"认领"文件 ──► 拉起 DSH 窗口（dsh://open + 强制置顶）
-                     └─► 浏览器端 2.5 秒内轮询到，切换到该会话
-```
+---
 
-## 功能
+## 它到底解决什么问题
 
-| 行为 | 说明 |
+DSH 跑长任务时，你通常会切去干别的事。任务结束时你既听不到、也看不到——这个插件补上这一环：
+
+| 什么时候提醒 | 提醒长什么样 |
 | --- | --- |
-| 触发 | 宿主端监听 `agent/status`，某个会话的 agent 由 `running` 转为停止时判定任务结束（子代理的完成不会打扰你） |
-| **审批提醒** | 监听会话审计事件 `approval/asked`：有工具在等你的批准时也弹同样的卡片，**卡片上写明是哪个工具、要做什么**（从 `tool/call` 的参数里取命令/路径等摘要） |
-| **提问提醒** | 以纯观察者身份挂在 `user-questions/request` 瀑布上（`return next()` 原样放行）：agent 提问并卡住时弹卡片，标题就是问题正文 |
-| 静音条件 | 浏览器端持续上报 `document.hasFocus()` / `visibilityState`；**主界面在前台时不提醒**，后台超过 2 分钟无上报也会提醒（宁可提醒，不漏报） |
-| 提示音 | 插件自带的合成 "叮"（三个衰减正弦分音，写入临时目录的 WAV，无需联网、无版权问题） |
-| 缩略卡片 | PowerShell + WinForms 置顶窗口，右下角 16px 边距，圆角、深色、带状态色条；`WS_EX_NOACTIVATE` + `ShowWithoutActivation`，**弹出时不抢你的输入焦点** |
-| 点击卡片 | ① 记录要打开的会话；② **查找窗口时包含隐藏窗口**（DSH 收进托盘后 `IsWindowVisible=false`），用 `ShowWindowAsync(SW_SHOW)` + `SetWindowPos(SWP_SHOWWINDOW)` 唤出，再强制置顶；都失败才退回 `dsh://open`（给足 12 秒，冷启动 Electron 也够）；③ 浏览器端轮询到认领后 `openSession()` 定位任务 |
-| 自动关闭 | 默认 9 秒；审批/提问卡片默认 20 秒（人可能不在机器前），右上角 ✕ 可立即关闭 |
-| 异常场景 | 出错 / 被阻断 / 达到输出上限会显示不同文案与颜色；用户自己按停止（`aborted`）默认不提醒 |
+| 任务完成 | 「叮」+ 绿条卡片：`任务已完成` + 会话标题 |
+| 出错 / 被阻断 / 达到输出上限 | 红条或琥珀条卡片，文案不同 |
+| **有工具在等你批准** | 蓝条卡片：`需要你审批` + **是哪个工具、要执行什么**（例如命令原文） |
+| **Agent 提问后卡住** | 紫条卡片：`需要你回答` + 问题原文 |
 
-状态色条：完成=绿、审批=蓝、提问=紫、出错/阻断=红、其它=琥珀。
+而且：**你正在看 DSH 窗口时它完全不打扰你**（浏览器端持续上报窗口焦点，前台时静默）。
+
+---
 
 ## 安装
 
-DSH 桌面版的 profile 由应用自己管理，`dsh plugin --profile desktop` 会被拒绝，所以用脚本安装：
+三种方式，任选一种。**方式一最简单**。
 
-```powershell
-powershell -ExecutionPolicy Bypass -File install.ps1
-```
+### 方式一：在 DSH 里粘贴链接（推荐）
 
-脚本按插件管理器认可的**本机包布局**安装，这样它会出现在应用「插件」页的「**已安装**」分组里，并带开关：
+1. 打开 DeepSeek Harness；
+2. 左侧点「**插件**」；
+3. 右上角点「**添加插件**」；
+4. 把下面这一行原样粘进去，安装：
 
-```
-<profile>\plugins\dsh-completion-alert        包本体
-<profile>\node_modules\dsh-completion-alert   指向包本体的 junction
-<profile>\package.json
-    dependencies["dsh-completion-alert"] = "file:plugins/dsh-completion-alert"
-    dsh.profile.bundles                 += "dsh-completion-alert"
-```
+   ```
+   https://github.com/jiachenleo9-create/dsh-completion-alert
+   ```
 
-> 只写进 `dsh.profile.bundles` 而不写 `dependencies` 也能加载，但插件页会把 `installed=false && optional=false` 的条目过滤掉——这就是它一开始不出现在那个界面里的原因。
+5. 安装完成后**重启一次 DeepSeek Harness**；
+6. 想确认成功：浏览器打开 `http://127.0.0.1:19387/completion-alert/ping`，看到 `{"ok":true,...}` 就对了。
 
-然后：
+### 方式二：下载 ZIP + 双击脚本（不会命令行也能用）
 
-1. **重启 DeepSeek Harness**（bundle 在启动时装载；宿主端改动也必须重启）
-2. 刷新插件页：`dsh-completion-alert` 出现在「已安装」分组，可直接开关
-3. 自检：`curl http://127.0.0.1:19387/completion-alert/ping` 应返回 `{"ok":true,...}`
+1. 打开仓库页面，点绿色 **Code** 按钮 → **Download ZIP**；
+2. 解压到一个你不会删的文件夹（比如 `D:\dsh-completion-alert`）；
+3. 在该文件夹里按住 `Shift` + 右键 → 「**在此处打开 PowerShell 窗口**」，粘贴回车：
 
-卸载：
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\install.ps1
+   ```
 
-```powershell
-powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall
-```
+4. 看到 `Installed.` 后**重启 DeepSeek Harness**。
 
-也可以在插件页直接移除（它会走管理器的 `pnpm remove`；`plugins\` 下的包本体会保留，需要时手工删除）。
+脚本做的事：把插件放进 DSH 的 profile（`plugins\` + `node_modules\` 链接），并登记进插件清单——所以它也会出现在「插件」页的「**已安装**」分组里，可以随时开关。
 
-### 从克隆的仓库安装
+### 方式三：命令行
 
 ```powershell
 git clone https://github.com/jiachenleo9-create/dsh-completion-alert.git
@@ -76,9 +65,25 @@ cd dsh-completion-alert
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-## 配置
+> 卸载：`install.ps1 -Uninstall`，或在「插件」页里直接移除。
 
-在 profile 目录的 `cordis.patch.yml` 里按 id 覆盖（改完刷新页面 / 重启应用）：
+---
+
+## 装上之后是什么样
+
+- 任务完成 → 右下角弹卡片（**9 秒**后自动消失，点 ✕ 可立刻关掉）；
+- 审批 / 提问 → 卡片停留 **20 秒**（人可能不在机器前）；
+- 卡片**不会抢走你的输入焦点**（正在打字也不会被打断）；
+- **点卡片** → DSH 窗口被唤出（即使之前被关进托盘/最小化），并自动切到那次会话；
+- DSH 正在前台时 → 不响、不弹。
+
+状态色条：完成=绿、审批=蓝、提问=紫、出错/阻断=红、其它=琥珀。
+
+---
+
+## 配置（可选）
+
+在 DSH profile 目录的 `cordis.patch.yml` 里按 id 覆盖；改完刷新页面或重启应用：
 
 ```yaml
 - id: completion-alert
@@ -93,55 +98,69 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
     notifyOnAbort: false     # 用户手动停止的任务是否也提醒
     approvalAlerts: true     # 有工具等待批准时提醒（卡片写明审批内容）
     approvalSeconds: 20      # 审批卡片存活秒数
-    questionAlerts: true     # agent 提问并卡住时提醒
+    questionAlerts: true     # Agent 提问并卡住时提醒
     questionSeconds: 20      # 提问卡片存活秒数
     minGapMs: 5000           # 两张卡片之间的最小间隔
-    debounceMs: 1200         # agent 停止后的稳定等待，避免误报
+    debounceMs: 1200         # Agent 停止后的稳定等待，避免误报
 ```
 
 只想要声音、不要卡片：`popup: false, sound: true`。不想被审批打断：`approvalAlerts: false`。
 
-## 自检与排查
+---
+
+## 出问题了怎么办
 
 | 现象 | 处理 |
 | --- | --- |
-| 没有任何反应 | 确认 `curl http://127.0.0.1:19387/completion-alert/ping` 返回 `ok`；否则说明宿主端没装载（未重启 / bundle 没写进 package.json） |
-| ping 里 `hasClientReport: false` | 浏览器端没跑起来：刷新页面；确认 `dsh.client` 声明与 `lib/client.js` 存在 |
-| 想立刻看效果 | `curl http://127.0.0.1:19387/completion-alert/test`：无视前台状态，直接弹一次卡片并播放提示音；`?kind=approval` / `?kind=question` 预览另外两种样式 |
-| 收进托盘后点卡片没反应 | 宿主端需为包含「隐藏窗口查找 + 唤出」的新版本（`lib/index.js` 改动要重启 DSH 才生效） |
-| 有卡片但不置顶 / 点了没反应 | 卡片脚本在无 WinForms 环境下会降级；检查卡片是否被其它置顶窗口遮挡 |
-| 想留诊断日志 | 宿主端会把卡片日志写到 `%TEMP%\dsh-completion-alert\card.log`（`reveal ... visible=... raised=...` 就是关键行） |
+| 完全没反应 | 打开 `http://127.0.0.1:19387/completion-alert/ping`。没有 `ok` 说明宿主端没装载：确认已重启 DSH，且插件出现在「插件」页 |
+| `ping` 里 `hasClientReport: false` | 浏览器端没起来：刷新 DSH 页面 |
+| 想立刻看效果 | `curl http://127.0.0.1:19387/completion-alert/test`（无视前台状态直接弹一张）；`?kind=approval` / `?kind=question` 预览另外两种样式 |
+| 点了卡片窗口没出来 | 需要包含「隐藏窗口唤出」的版本：更新到最新代码（`install.ps1` 重跑一次）并重启 DSH |
+| 想看日志 | 卡片会把过程写到 `%TEMP%\dsh-completion-alert\card.log`，关键行是 `reveal ... visible=... raised=...` |
+
+---
 
 ## 已知限制
 
-- **仅 Windows**：置顶卡片依赖 PowerShell + WinForms；其它平台只写日志不弹窗（`ctx.logger` 记录）。
-- 卡片出现约有 1–2 秒延迟（PowerShell 进程启动 + C# 辅助类编译）；每次提醒一个进程，关闭即退出。
-- 点击后的会话定位依赖浏览器端存活；页面关闭时只保留"唤起窗口"这一步。
-- 宿主端（`lib/index.js`）改动需要重启 DeepSeek Harness；客户端半（`lib/client.js`）改动刷新页面即可。
-- 缩略卡片不使用系统通知通道，因此不受 Windows「专注助手 / 通知设置」影响。
+- **仅 Windows**：卡片依赖 PowerShell + WinForms；其它平台只写日志、不弹窗。
+- 卡片出现约有 1–2 秒延迟（PowerShell 进程启动 + C# 辅助类编译）。
+- 点击后的会话定位依赖 DSH 页面存活；页面已关闭时只保留"唤起窗口"。
+- 宿主端（`lib/index.js`）改动需要重启 DSH；浏览器端（`lib/client.js`）刷新页面即可。
+- 不占用系统通知通道，因此不受 Windows「专注助手 / 通知设置」影响。
 
-## 目录结构
+---
+
+## 给开发者
+
+无构建步骤：`lib/index.js`（宿主端）与 `lib/client.js`（浏览器端）都是手写 ESM，客户端半使用 DSH 的 `window.__ModuleLoader__.load({ id, factory })` 懒加载 CJS 约定。
 
 ```
 dsh-completion-alert/
-├─ package.json        # dsh.bundle + dsh.client 声明，无构建步骤
+├─ package.json        # dsh.bundle + dsh.client 声明
 ├─ cordis.patch.yml    # bundle 层：插入 completion-alert 这一行
-├─ lib/index.js        # 宿主端：事件判定、焦点状态、HTTP 路由、调度卡片
-├─ lib/client.js       # 浏览器端：上报焦点、轮询认领、打开会话
-├─ assets/notify.ps1   # 右下角置顶卡片（WinForms + Win32 置顶）
+├─ lib/index.js        # 宿主端：agent/status、approval/asked、user-questions/request、
+│                      #          焦点状态、HTTP 路由、调度卡片
+├─ lib/client.js       # 浏览器端：上报焦点、轮询"认领"、切会话
+├─ assets/notify.ps1   # 右下角置顶卡片（WinForms + Win32 唤出/置顶）
 ├─ docs/               # 截图
 ├─ install.ps1         # 安装 / 卸载
 ├─ LICENSE             # MIT
 └─ README.md
 ```
 
+用到的 DSH 接口（均来自官方包，未打补丁）：
+
+- 宿主：`ctx.on('agent/status')`、`ctx.on('session/event')` 的 `approval/asked`、`ctx.waterfall('user-questions/request')` 观察者、`ctx.webServer.register()`；
+- 浏览器：`ctx.remote.$on('api-session/status')`、`ctx.get('uiWorkspace').openSession()`、`document.hasFocus()` / `visibilityState`；
+- 会话事件：`turn/end`（原因分类）、`session/title`、`tool/call`（审批内容摘要）。
+
 ## 参考与致谢
 
-做之前先把 DSH 插件生态翻了一遍，以下几点思路来自这些 MIT 项目的公开实现（代码为本仓库重写，未复制 GPL 项目）：
+做之前先扫了一遍 DSH 插件生态，以下几点思路来自这些 MIT 项目的公开实现（代码为本仓库重写，未复制 GPL 项目）：
 
-- [dsh-thinking-notifier](https://github.com/6-debug-6/dsh-thinking-notifier)——用 PowerShell 做真正的置顶无边框角标窗口。
-- [Favio8/dsh-plugins](https://github.com/Favio8/dsh-plugins)——宿主端 `agent/status` 判定任务结束 + 合成提示音 + 右下角卡片。
-- [Mvyvn/dsh-desktop-notify](https://github.com/Mvyvn/dsh-desktop-notify)（GPL-3.0，仅参考设计）——「焦点时静音」的做法：浏览器端上报 `document.hasFocus()` / `visibilityState`。
+- [dsh-thinking-notifier](https://github.com/6-debug-6/dsh-thinking-notifier)——用 PowerShell 做真正的置顶无边框角标窗口；
+- [Favio8/dsh-plugins](https://github.com/Favio8/dsh-plugins)——宿主端 `agent/status` 判定任务结束 + 合成提示音 + 右下角卡片；
+- [Mvyvn/dsh-desktop-notify](https://github.com/Mvyvn/dsh-desktop-notify)（GPL-3.0，仅参考设计）——"焦点时静音"的做法；
 - [TelosmaYLX/dsh-session-notify](https://github.com/TelosmaYLX/dsh-session-notify)——`turn/end` 原因分类与失焦/聚焦分流。
 
 ## 许可
