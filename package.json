@@ -1,0 +1,56 @@
+{
+  "name": "dsh-completion-alert",
+  "version": "0.1.0",
+  "description": "DSH (DeepSeek Harness) plugin: chime + always-on-top bottom-right card when a task finishes, an approval is pending, or the agent asks a question — clicking the card restores the main window.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "notification",
+    "toast",
+    "chime",
+    "windows"
+  ],
+  "license": "MIT",
+  "author": "jiachenleo9-create",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiachenleo9-create/dsh-completion-alert.git"
+  },
+  "homepage": "https://github.com/jiachenleo9-create/dsh-completion-alert#readme",
+  "bugs": {
+    "url": "https://github.com/jiachenleo9-create/dsh-completion-alert/issues"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.0.4"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [],
+      "external": []
+    }
+  }
+}

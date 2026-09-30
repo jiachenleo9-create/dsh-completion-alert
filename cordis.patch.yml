@@ -1,0 +1,22 @@
+# dsh-completion-alert bundle layer.
+#
+# One row mounts both halves: the host half watches agent lifecycles and owns
+# the card, the browser half (declared by `dsh.client` in package.json) reports
+# window focus and selects the finished task after a click.
+#
+# Configuration is optional; edit this row from the profile's cordis.patch.yml
+# to override any field, e.g.
+#
+#   - id: completion-alert
+#     name: 'dsh-completion-alert'
+#     config:
+#       sound: true
+#       popup: true
+#       popupSeconds: 9
+#       corner: br
+#       onlyWhenUnfocused: true
+#       notifyOnAbort: false
+
+- insert:
+    - id: completion-alert
+      name: 'dsh-completion-alert'

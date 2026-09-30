@@ -1,0 +1,14 @@
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# Node / pnpm
+node_modules/
+pnpm-lock.yaml
+npm-debug.log*
+pnpm-debug.log*
+
+# Local runtime output of the plugin
+*.log
+verification/
