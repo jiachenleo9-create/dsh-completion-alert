@@ -6,7 +6,7 @@
 
 > 仓库地址（复制这一行即可安装）：`https://github.com/jiachenleo9-create/dsh-completion-alert`
 >
-> 平台：Windows。许可：MIT。无需编译，无需联网（提示音是插件自己合成的）。
+> **平台：仅 Windows**（macOS 会在下文说明：能装上，但不会有提醒）。许可：MIT。无需编译，无需联网（提示音是插件自己合成的）。
 
 ---
 
@@ -122,7 +122,19 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 ## 已知限制
 
-- **仅 Windows**：卡片依赖 PowerShell + WinForms；其它平台只写日志、不弹窗。
+### macOS / Linux 用户请注意
+
+**这个插件目前只在 Windows 上会提醒。** 在 macOS（以及 Linux）上：
+
+- 插件**可以正常安装、正常加载**，DSH 不会报错，`http://127.0.0.1:19387/completion-alert/ping` 也会返回 `ok`；
+- 但到"弹卡片 + 响铃"这一步时会安静地跳过（宿主端日志里会写 `implemented for Windows only; skipping`），**你收不到任何提醒**。
+
+原因是提醒的最后一层用了 Windows 原生能力：置顶卡片是 PowerShell + WinForms 窗口，窗口唤出用 Win32 API。核心逻辑（任务完成/审批/提问的判定、焦点门控、安装与加载）本身是跨平台的。
+
+移植到 macOS 的工作量不大——只需重写"弹窗 + 发声"这一层（用一个等价的 JXA/Cocoa 脚本替换 `assets/notify.ps1`，宿主端加一个平台分支，约 300 行），其余代码原样复用。只是我手上没有 Mac，无法实测，所以暂未提供。有 Mac 环境的欢迎提 PR。
+
+### 其它
+
 - 卡片出现约有 1–2 秒延迟（PowerShell 进程启动 + C# 辅助类编译）。
 - 点击后的会话定位依赖 DSH 页面存活；页面已关闭时只保留"唤起窗口"。
 - 宿主端（`lib/index.js`）改动需要重启 DSH；浏览器端（`lib/client.js`）刷新页面即可。
